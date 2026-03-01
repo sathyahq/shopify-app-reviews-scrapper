@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopify App Reviews Scraper</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: #666; margin-bottom: 32px; }
+    .card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; transition: border-color 0.2s; }
+    input:focus { outline: none; border-color: #5c6ac4; }
+    .row { display: flex; gap: 16px; align-items: flex-end; }
+    .row .form-group:first-child { flex: 1; }
+    .row .form-group:last-child { width: 140px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #5c6ac4; color: white; width: 100%; justify-content: center; }
+    .btn-primary:hover { background: #4959bd; }
+    .btn-primary:disabled { background: #a4a9d4; cursor: not-allowed; }
+    .btn-download { background: #f4f5f8; color: #333; border: 2px solid #e0e0e0; }
+    .btn-download:hover { background: #e8eaf0; }
+    .download-bar { display: flex; gap: 12px; margin-bottom: 24px; }
+    .progress { display: none; text-align: center; padding: 24px; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top: 4px solid #5c6ac4; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-text { color: #666; font-size: 14px; }
+    .error { display: none; background: #fef2f2; color: #dc2626; padding: 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .results { display: none; }
+    .stats { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat { background: #f8f9fa; padding: 16px 24px; border-radius: 8px; min-width: 150px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #5c6ac4; }
+    .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:hover td { background: #fafbfc; }
+    .review-body { max-width: 400px; max-height: 80px; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+    .stars { color: #f59e0b; letter-spacing: 2px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .badge-5 { background: #d1fae5; color: #065f46; }
+    .badge-4 { background: #e0f2fe; color: #075985; }
+    .badge-3 { background: #fef9c3; color: #854d0e; }
+    .badge-2 { background: #fed7aa; color: #9a3412; }
+    .badge-1 { background: #fecaca; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Shopify App Reviews Scraper</h1>
+    <p class="subtitle">Paste a Shopify app URL to extract all reviews</p>
+    <div class="card">
+      <div class="row">
+        <div class="form-group">
+          <label for="url">Shopify App URL</label>
+          <input type="text" id="url" placeholder="https://apps.shopify.com/loox or just loox">
+        </div>
+        <div class="form-group">
+          <label for="pages">Max Pages</label>
+          <input type="number" id="pages" value="5" min="1" max="100">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="scrapeBtn" onclick="startScrape()">
+        Scrape Reviews
+      </button>
+    </div>
+    <div class="error" id="error"></div>
+    <div class="progress" id="progress">
+      <div class="spinner"></div>
+      <div class="progress-text">Scraping reviews... This may take a minute.</div>
+    </div>
+    <div class="results" id="results">
+      <div class="card">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value" id="statApp">-</div>
+            <div class="stat-label">App Name</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statCount">0</div>
+            <div class="stat-label">Reviews Scraped</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statPages">0</div>
+            <div class="stat-label">Pages Scraped</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statAvg">-</div>
+            <div class="stat-label">Avg Rating</div>
+          </div>
+        </div>
+        <div class="download-bar">
+          <button class="btn btn-download" onclick="downloadCSV()">Download CSV</button>
+          <button class="btn btn-download" onclick="downloadExcel()">Download Excel</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rating</th>
+                <th>Author</th>
+                <th>Date</th>
+                <th>Review</th>
+                <th>Helpful</th>
+              </tr>
+            </thead>
+            <tbody id="reviewsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let scrapedReviews = [];
+    function starStr(n) { return n ? '\u2605'.repeat(n) + '\u2606'.repeat(5 - n) : '-'; }
+    async function startScrape() {
+      const url = document.getElementById('url').value.trim();
+      const pages = parseInt(document.getElementById('pages').value) || 5;
+      if (!url) { showError('Please enter a Shopify app URL or slug.'); return; }
+      hideError();
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('progress').style.display = 'block';
+      document.getElementById('scrapeBtn').disabled = true;
+      try {
+        const resp = await fetch('/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, max_pages: pages }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) { showError(data.error || 'Something went wrong.'); return; }
+        scrapedReviews = data.reviews;
+        showResults(data);
+      } catch (e) {
+        showError('Network error. Make sure the server is running.');
+      } finally {
+        document.getElementById('progress').style.display = 'none';
+        document.getElementById('scrapeBtn').disabled = false;
+      }
+    }
+    function showResults(data) {
+      const reviews = data.reviews;
+      document.getElementById('statApp').textContent = data.app.title || '-';
+      document.getElementById('statCount').textContent = reviews.length;
+      document.getElementById('statPages').textContent = data.pages_scraped;
+      if (reviews.length > 0) {
+        const avg = reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length;
+        document.getElementById('statAvg').textContent = avg.toFixed(1);
+      }
+      const tbody = document.getElementById('reviewsTable');
+      tbody.innerHTML = '';
+      reviews.forEach(r => {
+        const tr = document.createElement('tr');
+        const ratingClass = 'badge badge-' + (r.rating || 0);
+        tr.innerHTML = '<td><span class="' + ratingClass + '">' + starStr(r.rating) + '</span></td><td>' + esc(r.author) + '</td><td style="white-space:nowrap">' + esc(r.date) + '</td><td><div class="review-body">' + esc(r.body) + '</div></td><td>' + (r.helpful_count || 0) + '</td>';
+        tbody.appendChild(tr);
+      });
+      document.getElementById('results').style.display = 'block';
+    }
+    function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+    function showError(msg) { const el = document.getElementById('error'); el.textContent = msg; el.style.display = 'block'; }
+    function hideError() { document.getElementById('error').style.display = 'none'; }
+    async function downloadCSV() {
+      const resp = await fetch('/download/csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviews: scrapedReviews }) });
+      const blob = await resp.blob();
+      downloadBlob(blob, 'reviews.csv');
+    }
+    async function downloadExcel() {
+      const resp = await fetch('/download/excel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviews: scrapedReviews }) });
+      const blob = await resp.blob();
+      downloadBlob(blob, 'reviews.xlsx');
+    }
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+    document.getElementById('url').addEventListener('keydown', e => { if (e.key === 'Enter') startScrape(); });
+  </script>
+</body>
+</html>
